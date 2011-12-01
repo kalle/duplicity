@@ -1,0 +1,7 @@
+*.log
+.project
+.pydevproject
+.settings
+config.py
+testfiles
+random_seed
