@@ -605,6 +605,39 @@ def list_current(col_stats):
             log.Log(user_info, log.INFO, log.InfoCode.file_list,
                     log_info, True)
 
+def list_candidates():
+    """
+    List the files that will be selected for backup.
+
+    @rtype: void
+    @return: void
+    """
+    def humanize_bytes(bytes, precision=1):
+        """Return a humanized string representation of a number of bytes.
+
+        From: http://code.activestate.com/recipes/577081-humanized-representation-of-a-number-of-bytes/
+        """
+        abbrevs = (
+            (1<<50L, 'PB'),
+            (1<<40L, 'TB'),
+            (1<<30L, 'GB'),
+            (1<<20L, 'MB'),
+            (1<<10L, 'kB'),
+            (1, 'bytes')
+        )
+        if bytes == 1:
+            return '1 byte'
+        for factor, suffix in abbrevs:
+            if bytes >= factor:
+                break
+        return '%.*f %s' % (precision, bytes / factor, suffix)
+
+    total_size = 0
+    for x in globals.select:
+        print x.type, x.name
+        if x.isreg():
+            total_size += x.getsize()
+    print "Total size %s" % humanize_bytes(total_size)
 
 def restore(col_stats):
     """
@@ -1240,6 +1273,13 @@ def main():
 
     # check for disk space and available file handles
     check_resources(action)
+    if action == "list-candidates":
+        list_candidates()
+        log.shutdown()
+        if exit_val is not None:
+            sys.exit(exit_val)
+        else:
+            return
 
     # check archive synch with remote, fix if needed
     decrypt = action not in ["collection-status"]

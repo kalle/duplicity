@@ -47,6 +47,7 @@ select_files = []           # Will hold file objects when filelist given
 
 full_backup = None          # Will be set to true if full command given
 list_current = None         # Will be set to true if list-current command given
+list_candidates = None      # Will be set to true if list-candidates command given
 collection_status = None    # Will be set to true if collection-status command given
 cleanup = None              # Set to true if cleanup command given
 verify = None               # Set to true if verify command given
@@ -56,6 +57,7 @@ commands = ["cleanup",
             "full",
             "incremental",
             "list-current-files",
+            "list-candidate-files",
             "remove-older-than",
             "remove-all-but-n-full",
             "remove-all-inc-of-but-n-full",
@@ -201,7 +203,7 @@ class OPHelpFix(optparse.OptionParser):
 def parse_cmdline_options(arglist):
     """Parse argument list"""
     global select_opts, select_files, full_backup
-    global list_current, collection_status, cleanup, remove_time, verify
+    global list_current, list_candidates, collection_status, cleanup, remove_time, verify
 
     def use_gio(*args):
         try:
@@ -573,6 +575,9 @@ def parse_cmdline_options(arglist):
     elif cmd == "list-current-files":
         list_current = True
         num_expect = 1
+    elif cmd == "list-candidate-files":
+        list_candidates = True
+        num_expect = 1
     elif cmd == "remove-older-than":
         try:
             arg = args.pop(0)
@@ -776,6 +781,7 @@ def usage():
   duplicity verify [%(options)s] %(source_url)s %(target_dir)s
   duplicity collection-status [%(options)s] %(target_url)s
   duplicity list-current-files [%(options)s] %(target_url)s
+  duplicity list-candidate-files [%(options)s] %(source_dir)s
   duplicity cleanup [%(options)s] %(target_url)s
   duplicity remove-older-than %(time)s [%(options)s] %(target_url)s
   duplicity remove-all-but-n-full %(count)s [%(options)s] %(target_url)s
@@ -812,6 +818,7 @@ def usage():
   full <%(source_dir)s> <%(target_url)s>
   incr <%(source_dir)s> <%(target_url)s>
   list-current-files <%(target_url)s>
+  list-candidate-files <%(source_dir)s>
   restore <%(target_url)s> <%(source_dir)s>
   remove-older-than <%(time)s> <%(target_url)s>
   remove-all-but-n-full <%(count)s> <%(target_url)s>
@@ -907,6 +914,11 @@ def process_local_dir(action, local_pathname):
             log.FatalError(_("Verify directory %s does not exist") %
                            (local_path.name,),
                            log.ErrorCode.verify_dir_doesnt_exist)
+    elif action == "list-candidates":
+        if not local_path.exists():
+            log.FatalError(_("Backup directory %s does not exist") %
+                           (local_path.name,),
+                           log.ErrorCode.verify_dir_doesnt_exist)
     else:
         assert action == "full" or action == "inc"
         if not local_path.exists():
@@ -919,7 +931,7 @@ def process_local_dir(action, local_pathname):
 
 def check_consistency(action):
     """Final consistency check, see if something wrong with command line"""
-    global full_backup, select_opts, list_current
+    global full_backup, select_opts, list_current, list_candidates
     def assert_only_one(arglist):
         """Raises error if two or more of the elements of arglist are true"""
         n = 0
@@ -927,9 +939,9 @@ def check_consistency(action):
             if m:
                 n+=1
         assert n <= 1, "Invalid syntax, two conflicting modes specified"
-    if action in ["list-current", "collection-status",
+    if action in ["list-current", "list-candidates", "collection-status",
                   "cleanup", "remove-old", "remove-all-but-n-full", "remove-all-inc-of-but-n-full"]:
-        assert_only_one([list_current, collection_status, cleanup,
+        assert_only_one([list_current, list_candidates, collection_status, cleanup,
                          globals.remove_time is not None])
     elif action == "restore" or action == "verify":
         if full_backup:
@@ -970,9 +982,15 @@ def ProcessCommandLine(cmdline_list):
     # non-options arguments
     assert len(args) >= 1 and len(args) <= 2, "arg count should have been checked already"
 
-    if len(args) == 1:
+    if len(args) == 1 and list_candidates:
+        action = "list-candidates"
+        process_local_dir(action, args[0])
+        set_selection()
+    elif len(args) == 1:
         if list_current:
             action = "list-current"
+        elif list_candidates:
+            action = "list-candidates"
         elif collection_status:
             action = "collection-status"
         elif cleanup:
