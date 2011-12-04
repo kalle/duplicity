@@ -1,3 +1,9 @@
+This is my slightly tweaked version of the amazing backup
+program duplicity. I wanted a way to list the files the will
+go into a backup without doing an actual backup (the host
+running duplicity has only the public key so there is no
+way to list the content of a backup).
+
 INSTALLATION:
 
 Thank you for trying duplicity.  To install, run:
